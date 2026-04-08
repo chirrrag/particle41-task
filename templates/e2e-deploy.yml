@@ -13,6 +13,8 @@ build:
   before_script:
     # Configure Docker credentials for ECR
     - echo '{"credsStore":"ecr-login"}' > /kaniko/.docker/config.json
+    - git clone ${REPO}
+    - cd particle41-task/app
   script:
     - |
       # Dynamically determine the environment
@@ -59,7 +61,6 @@ terraform-plan:
       variables:
         CLUSTER_NAME: $PROD_CLUSTER_NAME
       when: on_success
-
   before_script:
     - |
       apk add --no-cache curl git bash
@@ -67,7 +68,6 @@ terraform-plan:
       curl -LO "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip"
       unzip awscli-exe-linux-aarch64.zip
       ./aws/install
-
   script:
     - |
       # AWS identity
@@ -142,7 +142,7 @@ kubernetes-deploy:
       echo "Cluster: $CLUSTER_NAME"
       # Clone repo
       git clone ${REPO}
-      cd kubernetes
+      cd particle41-task/kubernetes
       # Configure kubeconfig
       aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
       # Validate
