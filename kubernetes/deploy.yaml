@@ -59,7 +59,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: simple-time-service
-          image: 141294417070.dkr.ecr.ap-south-1.amazonaws.com/sts/simple-time-service:latest
+          image: sapraji/simple-time-service
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
