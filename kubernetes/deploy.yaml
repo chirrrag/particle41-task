@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-time-service
+  namespace: apps
+  labels:
+    app: simple-time-service
+spec:
+  replicas: 3
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600
+  selector:
+    matchLabels:
+      app: simple-time-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        Name: simple-time-service
+        app: simple-time-service
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8080"
+        prometheus.io/scrape: "true"
+    spec:
+      automountServiceAccountToken: false
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: arch
+                    operator: In
+                    values:
+                      - amd64
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 60
+              preference:
+                matchExpressions:
+                  - key: capacity
+                    operator: In
+                    values:
+                      - ondemand
+            - weight: 40
+              preference:
+                matchExpressions:
+                  - key: capacity
+                    operator: In
+                    values:
+                      - spot
+      tolerations:
+        - key: arch
+          operator: Equal
+          value: amd64
+          effect: NoSchedule
+      containers:
+        - name: simple-time-service
+          image: 141294417070.dkr.ecr.ap-south-1.amazonaws.com/sts/simple-time-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 150m
+              memory: 600Mi
+            limits:
+              cpu: 300m
+              memory: 750Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 100
+          lifecycle:
+            preStop:
+              httpGet:
+                path: /shutdown
+                port: 8080
+      restartPolicy: Always
+      dnsPolicy: ClusterFirst
+      terminationGracePeriodSeconds: 30
