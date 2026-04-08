@@ -8,3 +8,7 @@ variable cluster_version {
   default = "1.35"
 }
 
+variable "cluster-name" {
+  type    = string
+  default = "prod"
+}
