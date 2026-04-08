@@ -1,0 +1,39 @@
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+--BOUNDARY
+Content-Type: application/node.eks.aws
+
+---
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  cluster:
+    name: test
+    apiServerEndpoint: https://65ABAA96BB0FC1759C878FC5EE59FF09.yl4.ap-south-1.eks.amazonaws.com
+    certificateAuthority: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN5RENDQWJDZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRFNU1ETXdOREE1TkRZMU0xb1hEVEk1TURNd01UQTVORFkxTTFvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBT3A1Cm9FWHk1MERuZkQ5eUNwamhPTW16anFNT1FzVlFPL0xxVmtqUXV3SjNPcEhhZC9QdXBSVHIvQ0V1b05HbzZmNFQKMFJ3RjZPMEp5elJJZmpNWlV5S1dPR1VsNU1aUGkxUWQvNU11WXpUKzY2dURrandxYjk3Q0JpYk8vTTY0V1ZOaAprank1WGZDdHkyTVRkVU9tMUNKTkpxM3JWYlVFUVBGQy9EUVMra0NBOWMrVW9aUEUyUWh3L2lLb3IwNmRHSHgzCjUyQXNKOUo2bzI4NllZQlIwYWVCd0t4WS9RWHBGYlFEZ2YyRE9JRWF0aUc5cmdMSVh2QXRnakFvY05ZNFBWSG8KRlN5Tzk1cTVnaXZDWXlQbWdRUlQ1ekdTeTU5UVhseGQranRsMlVSaU4zM1NoVGtValRwVWd0bDVCckxPK0RMbQorWjdNRGRXZFI0dGRVV0NJUGNzQ0F3RUFBYU1qTUNFd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFEMklWVnBYSm1FSGRVZVB2S2IwSkpDM3pHTnQKUXJlMUdRSEpQaE5DYlExRWh5bDYxNW1uRW1DV1J1eXUzTk5sT0QweFI4aHIvZmNQcFNrZ0lqcHF2SXBGTnZLSwptQTdPZnhkVVhQZ2xRSDdSRmExM01JWWZzMEUvVTE0T3hSWGMzUmF0Tk40REdGT2hDMk9zODdObGZwUGQ2WXpQCllTTWsvRHIrSGo2QUZndmJQRnh1Z3hoTjZnVS9weTl1VFhxWERsVVNNUVlHTm1aQzkzNElDS2JkVjRVZDNLQngKRUdncEVxb1MwWXZiNldyaTdlQjdPUDZkNDB6TTFDSkw3V1BndTFXK3Z0dEJNQkhiZEpvd3FqOGp2M0JaMGpRdApIZTlOQkw3dHJlbUlEY2NMZ3g2cnlVaDA3b2UweUxMZUpBckFrVjYvcW1MQ2lWSlJGNkx0bTlGQUQ5RT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+    cidr: 172.20.0.0/16
+  kubelet:
+    config:
+      imageGCHighThresholdPercent: 70
+      imageGCLowThresholdPercent: 60
+
+--BOUNDARY
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/sh
+set -o xtrace
+
+mkdir -p /var/log/castai
+echo "AL2023 node init script ran" > /var/log/castai/init-script.log
+
+--BOUNDARY--
+
+
+
+/etc/eks/bootstrap.sh ${var.environment_name}
+
+
+terraform apply --target=module.test-amd64-statefulset-spot-nodegroup --target=module.test-amd64-statefulset-spot-nodegroup-argo --target=module.test-amd64-stateless-spot-nodegroup --target=module.test-arm-stateless-spot-nodegroup --target=module.test-osrm-statefulset-spot-nodegroup 
+
+
