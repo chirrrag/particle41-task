@@ -1,2 +1,2 @@
 include:
-  - local: '/templates/deploy-superset.yml'
+  - local: '/templates/e2e-deploy.yml'

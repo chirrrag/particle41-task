@@ -1,0 +1,152 @@
+stages:
+  - build
+  - terraform-plan
+  - terraform-deploy
+  - kubernetes-deploy
+
+build:
+  interruptible: true
+  stage: build
+  only:
+    - branches
+    - merge_requests
+  before_script:
+    # Configure Docker credentials for ECR
+    - echo '{"credsStore":"ecr-login"}' > /kaniko/.docker/config.json
+  script:
+    - |
+      # Dynamically determine the environment
+      if [[ "$CI_PIPELINE_SOURCE" == "merge_request_event" && ("$CI_COMMIT_BRANCH" != "main" && "$CI_COMMIT_BRANCH" != "master") ]]; then
+        ENV="qa"
+      elif [[ "$CI_COMMIT_BRANCH" == "main" || "$CI_COMMIT_BRANCH" == "master" ]]; then
+        ENV="production"
+      else
+        ENV=$DEV_ENV_NAME
+      fi
+
+      echo "Value of ENV var: $ENV"
+
+      # Run Kaniko build with optimized caching and new run mode
+      /kaniko/executor \
+        --context "${CI_PROJECT_DIR}" \
+        --dockerfile "${CI_PROJECT_DIR}/Dockerfile" \
+        --destination "$DOCKER_REGISTRY/$CI_PROJECT_NAME:$CI_COMMIT_REF_NAME-$CI_PIPELINE_IID" \
+        --build-arg ENV="$ENV" \
+        --cache=true \
+        --cache-repo="$KANIKO_CACHE_REPO" \
+        --cache-ttl="$KANIKO_CACHE_TTL" \
+        --use-new-run \
+        --compressed-caching=false
+  tags:
+    - kaniko_arm
+  timeout: 15 minutes
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+      - job_execution_timeout
+
+
+terraform-plan:
+  stage: terraform-plan
+  image: hashicorp/terraform:1.9.5
+  tags:
+    - kaniko_arm
+  rules:
+    # PROD
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      variables:
+        CLUSTER_NAME: $PROD_CLUSTER_NAME
+      when: on_success
+
+  before_script:
+    - |
+      apk add --no-cache curl git bash
+      # Install AWS CLI v2 (ARM64)
+      curl -LO "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip"
+      unzip awscli-exe-linux-aarch64.zip
+      ./aws/install
+
+  script:
+    - |
+      # AWS identity
+      aws sts get-caller-identity
+      echo "Cluster: $CLUSTER_NAME"
+      # Clone repo
+      git clone ${REPO}
+      cd particle41-task/terraform
+      terraform init --upgrade
+      terraform plan
+
+
+terraform-deploy:
+  stage: terraform-deploy
+  image: hashicorp/terraform:1.9.5
+  tags:
+    - kaniko_arm
+  rules:
+    # PROD
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      variables:
+        CLUSTER_NAME: $PROD_CLUSTER_NAME
+      when: manual
+
+  before_script:
+    - |
+      apk add --no-cache curl git bash
+      # Install AWS CLI v2 (ARM64)
+      curl -LO "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip"
+      unzip awscli-exe-linux-aarch64.zip
+      ./aws/install
+
+  script:
+    - |
+      # AWS identity
+      aws sts get-caller-identity
+      echo "Cluster: $CLUSTER_NAME"
+      # Clone repo
+      git clone ${REPO}
+      cd particle41-task/terraform
+      terraform init --upgrade
+      terraform apply -auto-approve
+
+
+
+kubernetes-deploy:
+  stage: kubernetes-deploy
+  image: public.ecr.aws/aws-cli/aws-cli:2.15.0
+  tags:
+    - kaniko_arm
+  rules:
+    # PROD
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      variables:
+        CLUSTER_NAME: $PROD_CLUSTER_NAME
+      when: manual
+  before_script:
+    - |
+      yum install -y git curl tar gzip
+      # Install kubectl (ARM64)
+      curl -LO "https://dl.k8s.io/release/v1.29.0/bin/linux/arm64/kubectl"
+      chmod +x kubectl
+      mv kubectl /usr/local/bin/
+      # Install helm (ARM64)
+      curl -LO https://get.helm.sh/helm-v3.14.0-linux-arm64.tar.gz
+      tar -zxvf helm-v3.14.0-linux-arm64.tar.gz
+      mv linux-arm64/helm /usr/local/bin/helm
+  script:
+    - |
+      # AWS identity
+      aws sts get-caller-identity
+      echo "Cluster: $CLUSTER_NAME"
+      # Clone repo
+      git clone ${REPO}
+      cd kubernetes
+      # Configure kubeconfig
+      aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
+      # Validate
+      kubectl get ns
+      # deploy
+      echo "deploy all components"
+      kubectl apply -f .
